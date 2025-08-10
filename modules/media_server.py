@@ -251,15 +251,26 @@ class JellyfinServer(BaseServer):
             if session.get("NowPlayingItem"): # Ignore sessions that aren't playing anything
                 session_ids.append(session["Id"])
 
+                # Check the play method
                 if session["PlayState"]["PlayMethod"] in ["DirectPlay", "DirectStream"]:
-                    logger.debug(f"{self._logger_prefix} {session['Id']} is direct play, calculating estimated bandwidth from MediaStreams")
-                    
+                    logger.debug(
+                        f"{self._logger_prefix} {session['Id']} is direct play, calculating estimated bandwidth from MediaStreams")
+
                     bandwidth = 0
                     for stream in session["NowPlayingItem"]["MediaStreams"]:
                         bandwidth += int(stream.get("BitRate", 0))
-                
-                else:
+
+                # Add a check to see if TranscodingInfo exists before trying to access it
+                elif session.get("TranscodingInfo"):
+                    logger.debug(
+                        f"{self._logger_prefix} {session['Id']} is transcoding, getting bitrate from TranscodingInfo")
                     bandwidth = int(session["TranscodingInfo"]["Bitrate"])
+
+                # Handle other cases or sessions that don't have this info
+                else:
+                    logger.debug(
+                        f"{self._logger_prefix} {session['Id']} has an unknown PlayMethod or missing TranscodingInfo. Skipping bandwidth calculation.")
+                    bandwidth = 0
 
                 count += self.process_session(
                     bandwidth   = bandwidth,
